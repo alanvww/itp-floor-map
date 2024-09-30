@@ -1,5 +1,3 @@
-// Add this to your existing script.js file
-
 let currentZoom = 1;
 const zoomStep = 0.1;
 const maxZoom = 5;
@@ -12,6 +10,7 @@ let pinchStartDistance = 0;
 function setupZoomPanControls() {
     const svgContainer = document.getElementById('svg-container');
     const svg = svgContainer.querySelector('svg');
+    const infoContainer = document.getElementById('info-container');
     
     // Create zoom controls
     const zoomControls = document.createElement('div');
@@ -43,12 +42,13 @@ function setupZoomPanControls() {
     svg.addEventListener('dragstart', (e) => e.preventDefault());
 
     function preventDefaultTouch(e) {
-        if (!e.target.closest('.zoom-button') && !e.target.closest('.hover-group')) {
+        if (!e.target.closest('.zoom-button') && !e.target.closest('.hover-group') && !e.target.closest('#info-container')) {
             e.preventDefault();
         }
     }
 
     function handleTouchStart(e) {
+        if (e.target.closest('#info-container')) return;
         preventDefaultTouch(e);
         if (e.touches.length === 1) {
             const now = new Date().getTime();
@@ -65,6 +65,7 @@ function setupZoomPanControls() {
     }
 
     function handleTouchMove(e) {
+        if (e.target.closest('#info-container')) return;
         preventDefaultTouch(e);
         if (e.touches.length === 1 && isDragging) {
             drag(e.touches[0]);
@@ -79,6 +80,7 @@ function setupZoomPanControls() {
     }
 
     function handleTouchEnd(e) {
+        if (e.target.closest('#info-container')) return;
         preventDefaultTouch(e);
         if (e.touches.length === 0) {
             endDrag();
@@ -86,7 +88,7 @@ function setupZoomPanControls() {
     }
 
     function startDrag(e) {
-        if (e.target.closest('.zoom-button') || e.target.closest('.hover-group')) return;
+        if (e.target.closest('.zoom-button') || e.target.closest('.hover-group') || e.target.closest('#info-container')) return;
         isDragging = true;
         startX = e.clientX || e.touches[0].clientX;
         startY = e.clientY || e.touches[0].clientY;
@@ -94,7 +96,7 @@ function setupZoomPanControls() {
     }
 
     function drag(e) {
-        if (!isDragging) return;
+        if (!isDragging || e.target.closest('#info-container')) return;
         const x = e.clientX || e.touches[0].clientX;
         const y = e.clientY || e.touches[0].clientY;
         const dx = (x - startX) / currentZoom;
@@ -112,6 +114,7 @@ function setupZoomPanControls() {
     }
 
     function handleWheel(e) {
+        if (e.target.closest('#info-container')) return;
         e.preventDefault();
         const delta = e.deltaY > 0 ? -zoomStep : zoomStep;
         const rect = svgContainer.getBoundingClientRect();
