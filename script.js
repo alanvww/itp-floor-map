@@ -1,6 +1,6 @@
 document.querySelectorAll('.hover-group').forEach((group) => {
 	group.addEventListener('mouseover', function () {
-		// this.querySelector('.info-text').setAttribute('visibility', 'visible');
+		 //this.querySelector('.info-text').setAttribute('visibility', 'visible');
 	});
 	group.addEventListener('mouseout', function () {
 		// this.querySelector('.info-text').setAttribute('visibility', 'hidden');
@@ -96,3 +96,132 @@ document.querySelector('#DesignLab').addEventListener('click', function () {
 
 	`;
 });
+
+
+// Add this to your existing script.js file
+
+let currentZoom = 1;
+const zoomStep = 0.1;
+const maxZoom = 5;
+const minZoom = 0.5;
+let isDragging = false;
+let startX, startY, translateX = 0, translateY = 0;
+
+function setupZoomPanControls() {
+    const svgContainer = document.getElementById('svg-container');
+const svg = svgContainer.querySelector('svg');
+    
+    // Create zoom controls
+    const zoomControls = document.createElement('div');
+    zoomControls.id = 'zoom-controls';
+    zoomControls.innerHTML = `
+        <button class="zoom-button" id="zoom-in">+</button>
+        <button class="zoom-button" id="zoom-out">-</button>
+        <button class="zoom-button" id="zoom-reset">Reset</button>
+    `;
+    svgContainer.appendChild(zoomControls);
+
+    // Add event listeners
+    document.getElementById('zoom-in').addEventListener('click', zoomIn);
+    document.getElementById('zoom-out').addEventListener('click', zoomOut);
+    document.getElementById('zoom-reset').addEventListener('click', resetZoom);
+
+    // Mouse events for dragging
+    svg.addEventListener('mousedown', startDrag);
+    svg.addEventListener('mousemove', drag);
+    svg.addEventListener('mouseup', endDrag);
+    svg.addEventListener('mouseleave', endDrag);
+
+    // Touch events for mobile
+    svg.addEventListener('touchstart', startDrag);
+    svg.addEventListener('touchmove', drag);
+    svg.addEventListener('touchend', endDrag);
+
+    svg.addEventListener('dragstart', (e) => e.preventDefault());
+
+
+    function zoomIn() {
+        setZoom(currentZoom + zoomStep);
+    }
+
+    function zoomOut() {
+        setZoom(currentZoom - zoomStep);
+    }
+
+    function resetZoom() {
+        currentZoom = 1;
+        translateX = 0;
+        translateY = 0;
+        updateSvgTransform();
+    }
+
+    function setZoom(zoom) {
+        currentZoom = Math.min(Math.max(zoom, minZoom), maxZoom);
+        updateSvgTransform();
+    }
+
+    function startDrag(e) {
+        isDragging = true;
+        startX = e.clientX || e.touches[0].clientX;
+        startY = e.clientY || e.touches[0].clientY;
+        
+        // Disable text selection
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+        document.body.style.mozUserSelect = 'none';
+        document.body.style.msUserSelect = 'none';
+    }
+
+    function drag(e) {
+        if (!isDragging) return;
+        e.preventDefault(); // Prevent any default drag behavior
+        const x = e.clientX || e.touches[0].clientX;
+        const y = e.clientY || e.touches[0].clientY;
+        const dx = (x - startX) / currentZoom;
+        const dy = (y - startY) / currentZoom;
+        translateX += dx;
+        translateY += dy;
+        startX = x;
+        startY = y;
+        updateSvgTransform();
+    }
+
+    function endDrag() {
+        isDragging = false;
+        
+        // Re-enable text selection
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+        document.body.style.mozUserSelect = '';
+        document.body.style.msUserSelect = '';
+    }
+
+    function updateSvgTransform() {
+        svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        svg.style.transformOrigin = '0 0';
+    }
+
+    // Wheel zoom
+    svgContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -zoomStep : zoomStep;
+        const newZoom = currentZoom + delta;
+        if (newZoom >= minZoom && newZoom <= maxZoom) {
+            const rect = svgContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            zoomAtPoint(newZoom, x, y);
+        }
+    });
+
+    function zoomAtPoint(newZoom, x, y) {
+        const scale = newZoom / currentZoom;
+        translateX = x - (x - translateX) * scale;
+        translateY = y - (y - translateY) * scale;
+        currentZoom = newZoom;
+        updateSvgTransform();
+    }
+}
+
+// Call this function after your SVG is loaded
+document.addEventListener('DOMContentLoaded', setupZoomPanControls);
