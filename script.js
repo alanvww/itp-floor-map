@@ -106,10 +106,11 @@ const maxZoom = 5;
 const minZoom = 0.5;
 let isDragging = false;
 let startX, startY, translateX = 0, translateY = 0;
+let lastTap = 0;
 
 function setupZoomPanControls() {
     const svgContainer = document.getElementById('svg-container');
-const svg = svgContainer.querySelector('svg');
+    const svg = svgContainer.querySelector('svg');
     
     // Create zoom controls
     const zoomControls = document.createElement('div');
@@ -126,38 +127,60 @@ const svg = svgContainer.querySelector('svg');
     document.getElementById('zoom-out').addEventListener('click', zoomOut);
     document.getElementById('zoom-reset').addEventListener('click', resetZoom);
 
-    // Mouse events for dragging
+    // Mouse events
     svg.addEventListener('mousedown', startDrag);
     svg.addEventListener('mousemove', drag);
     svg.addEventListener('mouseup', endDrag);
     svg.addEventListener('mouseleave', endDrag);
+    svg.addEventListener('wheel', handleWheel);
 
-    // Touch events for mobile
-    svg.addEventListener('touchstart', startDrag);
-    svg.addEventListener('touchmove', drag);
-    svg.addEventListener('touchend', endDrag);
+    // Touch events
+    svg.addEventListener('touchstart', handleTouchStart, { passive: false });
+    svg.addEventListener('touchmove', handleTouchMove, { passive: false });
+    svg.addEventListener('touchend', handleTouchEnd, { passive: false });
 
+    // Prevent default behaviors
     svg.addEventListener('dragstart', (e) => e.preventDefault());
+    svgContainer.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+    svgContainer.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+    zoomControls.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+    zoomControls.addEventListener('touchmove', preventDefaultTouch, { passive: false });
 
-
-    function zoomIn() {
-        setZoom(currentZoom + zoomStep);
+    function preventDefaultTouch(e) {
+        e.preventDefault();
     }
 
-    function zoomOut() {
-        setZoom(currentZoom - zoomStep);
+    function handleTouchStart(e) {
+        if (e.touches.length === 1) {
+            const now = new Date().getTime();
+            const timeSince = now - lastTap;
+            if (timeSince < 300 && timeSince > 0) {
+                // Double tap
+                zoomIn();
+                e.preventDefault();
+            } else {
+                startDrag(e.touches[0]);
+            }
+            lastTap = now;
+        } else if (e.touches.length === 2) {
+            // Two-finger tap (handled in touchend)
+            e.preventDefault();
+        }
     }
 
-    function resetZoom() {
-        currentZoom = 1;
-        translateX = 0;
-        translateY = 0;
-        updateSvgTransform();
+    function handleTouchMove(e) {
+        if (e.touches.length === 1) {
+            drag(e.touches[0]);
+        }
     }
 
-    function setZoom(zoom) {
-        currentZoom = Math.min(Math.max(zoom, minZoom), maxZoom);
-        updateSvgTransform();
+    function handleTouchEnd(e) {
+        if (e.touches.length === 0) {
+            endDrag();
+        } else if (e.touches.length === 1 && e.changedTouches.length === 1) {
+            // Two-finger tap ended (one finger lifted)
+            zoomOut();
+        }
     }
 
     function startDrag(e) {
@@ -174,7 +197,7 @@ const svg = svgContainer.querySelector('svg');
 
     function drag(e) {
         if (!isDragging) return;
-        e.preventDefault(); // Prevent any default drag behavior
+        e.preventDefault();
         const x = e.clientX || e.touches[0].clientX;
         const y = e.clientY || e.touches[0].clientY;
         const dx = (x - startX) / currentZoom;
@@ -196,13 +219,7 @@ const svg = svgContainer.querySelector('svg');
         document.body.style.msUserSelect = '';
     }
 
-    function updateSvgTransform() {
-        svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
-        svg.style.transformOrigin = '0 0';
-    }
-
-    // Wheel zoom
-    svgContainer.addEventListener('wheel', (e) => {
+    function handleWheel(e) {
         e.preventDefault();
         const delta = e.deltaY > 0 ? -zoomStep : zoomStep;
         const newZoom = currentZoom + delta;
@@ -212,7 +229,7 @@ const svg = svgContainer.querySelector('svg');
             const y = e.clientY - rect.top;
             zoomAtPoint(newZoom, x, y);
         }
-    });
+    }
 
     function zoomAtPoint(newZoom, x, y) {
         const scale = newZoom / currentZoom;
@@ -220,6 +237,31 @@ const svg = svgContainer.querySelector('svg');
         translateY = y - (y - translateY) * scale;
         currentZoom = newZoom;
         updateSvgTransform();
+    }
+
+    function zoomIn() {
+        setZoom(currentZoom + zoomStep);
+    }
+
+    function zoomOut() {
+        setZoom(currentZoom - zoomStep);
+    }
+
+    function resetZoom() {
+        currentZoom = 1;
+        translateX = 0;
+        translateY = 0;
+        updateSvgTransform();
+    }
+
+    function setZoom(zoom) {
+        currentZoom = Math.min(Math.max(zoom, minZoom), maxZoom);
+        updateSvgTransform();
+    }
+
+    function updateSvgTransform() {
+        svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        svg.style.transformOrigin = '0 0';
     }
 }
 
