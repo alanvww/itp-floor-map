@@ -1,3 +1,5 @@
+// script.js
+
 let currentZoom = 1;
 const zoomStep = 0.1;
 const maxZoom = 5;
@@ -6,6 +8,8 @@ let isDragging = false;
 let startX, startY, translateX = 0, translateY = 0;
 let lastTap = 0;
 let pinchStartDistance = 0;
+let dragStartTime = 0;
+const clickThreshold = 200; // milliseconds
 
 function setupZoomPanControls() {
     const svgContainer = document.getElementById('svg-container');
@@ -42,7 +46,7 @@ function setupZoomPanControls() {
     svg.addEventListener('dragstart', (e) => e.preventDefault());
 
     function preventDefaultTouch(e) {
-        if (!e.target.closest('.zoom-button') && !e.target.closest('.hover-group') && !e.target.closest('#info-container')) {
+        if (!e.target.closest('.zoom-button') && !e.target.closest('#info-container')) {
             e.preventDefault();
         }
     }
@@ -82,33 +86,47 @@ function setupZoomPanControls() {
     function handleTouchEnd(e) {
         if (e.target.closest('#info-container')) return;
         preventDefaultTouch(e);
-        if (e.touches.length === 0) {
-            endDrag();
-        }
+        endDrag(e);
     }
 
     function startDrag(e) {
-        if (e.target.closest('.zoom-button') || e.target.closest('.hover-group') || e.target.closest('#info-container')) return;
+        if (e.target.closest('.zoom-button') || e.target.closest('#info-container')) return;
         isDragging = true;
         startX = e.clientX || e.touches[0].clientX;
         startY = e.clientY || e.touches[0].clientY;
+        dragStartTime = new Date().getTime();
         svg.style.cursor = 'grabbing';
     }
 
     function drag(e) {
-        if (!isDragging || e.target.closest('#info-container')) return;
-        const x = e.clientX || e.touches[0].clientX;
-        const y = e.clientY || e.touches[0].clientY;
-        const dx = (x - startX) / currentZoom;
-        const dy = (y - startY) / currentZoom;
-        translateX += dx;
-        translateY += dy;
-        startX = x;
-        startY = y;
-        updateSvgTransform();
+        if (!isDragging) return;
+        const currentTime = new Date().getTime();
+        const dragDuration = currentTime - dragStartTime;
+
+        if (dragDuration > clickThreshold) {
+            const x = e.clientX || e.touches[0].clientX;
+            const y = e.clientY || e.touches[0].clientY;
+            const dx = (x - startX) / currentZoom;
+            const dy = (y - startY) / currentZoom;
+            translateX += dx;
+            translateY += dy;
+            startX = x;
+            startY = y;
+            updateSvgTransform();
+        }
     }
 
-    function endDrag() {
+    function endDrag(e) {
+        if (isDragging) {
+            const dragDuration = new Date().getTime() - dragStartTime;
+            if (dragDuration <= clickThreshold) {
+                // This was a click, not a drag
+                const clickedElement = e.target.closest('.hover-group');
+                if (clickedElement && window.updateInfo) {
+                    window.updateInfo(clickedElement.id);
+                }
+            }
+        }
         isDragging = false;
         svg.style.cursor = 'grab';
     }
